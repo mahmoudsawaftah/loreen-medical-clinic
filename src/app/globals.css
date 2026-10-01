@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+@theme {
+  /* LOREEN Beauty Clinic — champagne gold & ivory palette */
+  --color-primary-50: #fbf7ef;
+  --color-primary-100: #f5eddf;
+  --color-primary-200: #e8ddca;
+  --color-primary-300: #e3c98f;
+  --color-primary-400: #d5b574;
+  --color-primary-500: #c8a15a;
+  --color-primary-600: #a9823e;
+  --color-primary-700: #8f6d33;
+  --color-primary-800: #755a2b;
+  --color-primary-900: #5c4722;
+  --color-primary-950: #3e2f16;
+
+  --color-ink-50: #fbf7ef;
+  --color-ink-100: #f5eddf;
+  --color-ink-200: #e8ddca;
+  --color-ink-300: #d6c9b3;
+  --color-ink-400: #b3a58c;
+  --color-ink-500: #8d8070;
+  --color-ink-600: #746b5f;
+  --color-ink-700: #4f4940;
+  --color-ink-800: #34302a;
+  --color-ink-900: #26221d;
+  --color-ink-950: #171410;
+}
+
+:root {
+  --background: #fbf7ef;
+  --foreground: #26221d;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+html {
+  direction: rtl;
+}
+
+/* Arabic numerals stay Western in most contexts for clarity: handled per-component */
+[dir="rtl"] {
+  direction: rtl;
+}
+
+/* ---- LTR (English) overrides ---- */
+[dir="ltr"] {
+  direction: ltr;
+}
+
+/* Sidebar: sit on the left, content offset to the right in LTR */
+[dir="ltr"] .app-sidebar {
+  right: auto;
+  left: 0;
+}
+[dir="ltr"] .app-sidebar-content {
+  margin-right: 0;
+  margin-left: 16rem;
+}
+[dir="ltr"] .text-right {
+  text-align: left;
+}
+[dir="ltr"] .text-left {
+  text-align: right;
+}
+
+@media (max-width: 1023px) {
+  [dir="ltr"] .app-sidebar.app-sidebar-closed {
+    transform: translateX(-100%);
+  }
+  [dir="ltr"] .app-sidebar.app-sidebar-open {
+    transform: translateX(0);
+  }
+}
+
+/* Unread work items are visible without a harsh red blink or a notification logo. */
+@keyframes loreen-notification-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(200, 161, 90, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(200, 161, 90, 0.2), 0 0 10px rgba(200, 161, 90, 0.14);
+  }
+}
+
+.nav-notification-attention {
+  color: #fff7e8;
+  border: 1px solid rgba(227, 201, 143, 0.55);
+  animation: loreen-notification-pulse 2.4s ease-in-out infinite;
+}
+
+.nav-notification-group-attention {
+  color: #f2d89e;
+  background: rgba(200, 161, 90, 0.06);
+  border: 1px solid rgba(227, 201, 143, 0.24);
+}
+
+.notification-attention-badge {
+  min-width: 1.35rem;
+  height: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #c8a15a;
+  color: #2b2113;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 0 2px rgba(255, 247, 232, 0.1);
+}
+
+.nav-notification-attention-mobile {
+  color: #9a641f;
+  background: rgba(245, 237, 223, 0.95);
+  animation: loreen-notification-pulse 2.4s ease-in-out infinite;
+}
+
+.notification-attention-dot {
+  position: absolute;
+  top: 0.3rem;
+  right: 50%;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: #c8a15a;
+  box-shadow: 0 0 0 2px white, 0 0 7px rgba(200, 161, 90, 0.55);
+  animation: loreen-notification-pulse 2.4s ease-in-out infinite;
+}
+
+[dir="ltr"] .notification-attention-dot {
+  right: auto;
+  left: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-notification-attention,
+  .nav-notification-attention-mobile,
+  .notification-attention-dot {
+    animation: none;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d6c9b3;
+  border-radius: 4px;
+}

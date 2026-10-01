@@ -1,0 +1,1177 @@
+// Clinic Management System - Prisma schema
+// Money is always Decimal (pg numeric). Never use floats for money.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  MAIN_DOCTOR
+  ACCOUNTANT
+  DOCTOR
+  SECRETARY
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum VisitStatus {
+  REGISTERED
+  WAITING
+  WITH_DOCTOR
+  TREATMENT_COMPLETED
+  READY_FOR_PAYMENT
+  PARTIALLY_PAID
+  PAID
+  CLOSED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CLIQ
+  VISA
+}
+
+enum PaymentStatus {
+  COMPLETED
+  VOID
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+enum StockMovementType {
+  PURCHASE_RECEIPT
+  TREATMENT_USAGE
+  WASTE
+  EXPIRED
+  ADJUSTMENT
+  RETURN_TO_SUPPLIER
+  REVERSAL
+  PHYSICAL_COUNT_ADJUSTMENT
+}
+
+enum PurchaseRequestType {
+  OPERATIONAL
+  MEDICAL
+}
+
+enum PurchaseRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_CHANGES
+  RECEIVED
+  CANCELLED
+}
+
+enum PurchaseStatus {
+  COMPLETED
+  VOID
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  VOID
+}
+
+enum FollowUpStatus {
+  PENDING
+  CONTACTED
+  BOOKED
+  NO_ANSWER
+  CLOSED
+}
+
+enum FollowUpType {
+  FOLLOW_UP
+  BIRTHDAY
+  REMINDER
+  OTHER
+}
+
+enum CommunicationChannel {
+  WHATSAPP
+  SMS
+  PHONE_CALL
+  EMAIL
+  MANUAL
+  MOCK
+}
+
+enum CommunicationStatus {
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum CommunicationCategory {
+  TRANSACTIONAL
+  PROMOTIONAL
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  COMPLETED
+  PARTIAL_FAILURE
+  CANCELLED
+}
+
+enum CampaignRecipientStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum ClosingStatus {
+  OPEN
+  SUBMITTED
+  REVIEW_REQUIRED
+  APPROVED
+  CLOSED // legacy (kept for old rows)
+  REOPENED
+}
+
+enum InventoryCountStatus {
+  DRAFT
+  IN_PROGRESS
+  SUBMITTED
+  REVIEWED
+  POSTED
+}
+
+enum AttachmentEntityType {
+  PURCHASE_REQUEST
+  PURCHASE
+  EXPENSE
+  PAYMENT
+  INVOICE
+  TREATMENT
+  CUSTOMER
+  VISIT
+}
+
+model User {
+  id             String        @id @default(cuid())
+  username       String        @unique
+  name           String
+  englishName    String?
+  passwordHash   String
+role           Role
+  status         UserStatus    @default(ACTIVE)
+  mustChangePassword Boolean    @default(false)
+  permissionOverrides String[]  @default([]) // "GRANT:<perm>" / "DENY:<perm>" vs the role preset
+  lastLoginAt    DateTime?
+  deactivatedAt  DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  employee       Employee?
+  sessions       Session[]
+  auditLogs      AuditLog[]    @relation("AuditActor")
+  payments       Payment[]     @relation("PaymentCollector")
+  discounts      Discount[]    @relation("DiscountApprover")
+visitsCheckedIn Visit[]      @relation("VisitCheckedInBy")
+  visitsClosed   Visit[]       @relation("VisitClosedBy")
+  reopenedVisits Visit[]       @relation("VisitReopenedBy")
+  visitDoctor    Visit[]       @relation("VisitDoctor")
+  treatments     Treatment[]   @relation("TreatmentDoctor")
+stockMovements StockMovement[] @relation("StockMovementUser")
+  purchaseRequests PurchaseRequest[] @relation("PurchaseRequester")
+  approvedPurchaseRequests PurchaseRequest[] @relation("PurchaseRequestApprover")
+  purchases      Purchase[]    @relation("PurchaseCreatedBy")
+  expenses       Expense[]     @relation("ExpenseCreatedBy")
+  approvedExpenses Expense[]   @relation("ExpenseApprovedBy")
+  followUps      FollowUpTask[] @relation("FollowUpAssignedTo")
+  assignedFollowUps FollowUpTask[] @relation("FollowUpDoctor")
+  completedFollowUps FollowUpTask[] @relation("FollowUpCompletedBy")
+  communications CommunicationLog[] @relation("CommunicationSentBy")
+  attachments    Attachment[]  @relation("AttachmentUploadedBy")
+  createdBatches ProductBatch[] @relation("BatchCreatedBy")
+  closings       DayClosing[]  @relation("ClosingClosedBy")
+  closingsSubmitted DayClosing[] @relation("ClosingSubmittedBy")
+  closingsReviewed DayClosing[] @relation("ClosingReviewedBy")
+  closingsApproved DayClosing[] @relation("ClosingApprovedBy")
+  reopenedClosings DayClosing[] @relation("ClosingReopenedBy")
+  settings       Setting[]
+  medicalProfiles CustomerMedicalProfile[] @relation("MedicalProfileEditor")
+  patientsCreated Customer[]   @relation("PatientCreatedBy")
+  patientsUpdated PatientUpdateLog[] @relation("PatientUpdateUser")
+medicalEventsCreated CustomerMedicalEvent[] @relation("MedicalEventCreatedBy")
+  medicationsCreated  Medication[] @relation("MedicationCreatedBy")
+  receivedNotifications Notification[] @relation("NotificationRecipient")
+  services       Service[]
+  products       Product[]
+  suppliers      Supplier[]
+  expenseCategories ExpenseCategory[]
+  invoiceLines   InvoiceLine[] @relation("InvoiceLineCreatedBy")
+  customerSourcesCreated CustomerSource[] @relation("SourceCreatedBy")
+  inventoryCountsCreated InventoryCount[] @relation("CountCreatedBy")
+  inventoryCountsPerformed InventoryCount[] @relation("CountPerformedBy")
+  inventoryCountsReviewed InventoryCount[] @relation("CountReviewedBy")
+  inventoryCountsPosted InventoryCount[] @relation("CountPostedBy")
+  campaignsCreated Campaign[] @relation("CampaignCreatedBy")
+  campaignsCancelled Campaign[] @relation("CampaignCancelledBy")
+
+  @@index([role])
+  @@index([status])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Employee {
+  id            String    @id @default(cuid())
+  userId        String?   @unique
+  name          String
+  englishName   String?
+  jobTitle      String
+  monthlySalary Decimal   @db.Decimal(12, 3) // mirror of the latest open SalaryHistory row (current salary)
+  startDate     DateTime
+  endDate       DateTime?
+  active        Boolean   @default(true)
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user         User?          @relation(fields: [userId], references: [id])
+  payrollItems PayrollItem[]
+  salaryHistory SalaryHistory[]
+}
+
+/** Immutable salary timeline: a row per salary period (never overwritten). */
+model SalaryHistory {
+  id            String    @id @default(cuid())
+  employeeId    String
+  monthlySalary Decimal   @db.Decimal(12, 3)
+  effectiveFrom DateTime
+  effectiveTo   DateTime? // null = current open row; closed when a new salary/end-of-service applies
+  createdAt     DateTime  @default(now())
+  createdBy     String? // user id
+  reason        String? // increase/decrease/contract change note
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, effectiveFrom])
+}
+
+model PayrollPeriod {
+  id         String             @id @default(cuid())
+  month      Int
+  year       Int
+  status     PayrollPeriodStatus @default(DRAFT)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  items      PayrollItem[]
+
+  @@unique([month, year])
+}
+
+enum PayrollPeriodStatus {
+  DRAFT
+  FINALIZED
+}
+
+model PayrollItem {
+  id                   String  @id @default(cuid())
+  payrollPeriodId      String
+  employeeId           String
+  monthlySalarySnapshot Decimal @db.Decimal(12, 3)
+  adjustments          Decimal @default(0) @db.Decimal(12, 3)
+  finalSalary          Decimal @db.Decimal(12, 3)
+  notes                String?
+
+  payrollPeriod PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  employee      Employee      @relation(fields: [employeeId], references: [id])
+
+  @@unique([payrollPeriodId, employeeId])
+  @@index([employeeId])
+}
+
+model Customer {
+  id              String       @id @default(cuid())
+  customerNo      Int          @unique @default(autoincrement())
+  fullName        String
+  phone           String
+  phone2          String?
+  email           String?
+  birthDate       DateTime?
+  gender          String?
+  source          String? // legacy free-text acquisition source (pre-source-list records)
+  sourceId        String? // structured acquisition source (see CustomerSource)
+  sourceNote      String? // free text: "Other" note or referral free-text source
+  referrerCustomerId String? // optional: referring existing patient
+  marketingConsent Boolean     @default(false)
+  marketingOptOut  Boolean     @default(false)
+  marketingOptOutAt DateTime?
+  tags            String[]     @default([])
+  status          String       @default("ACTIVE")
+  notes           String?
+  createdById     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  createdBy     User?                       @relation("PatientCreatedBy", fields: [createdById], references: [id])
+  sourceRef     CustomerSource?             @relation(fields: [sourceId], references: [id])
+  referrer     Customer?                    @relation("ReferralLink", fields: [referrerCustomerId], references: [id])
+  referred     Customer[]                   @relation("ReferralLink")
+  medicalProfile CustomerMedicalProfile?
+  medicalEvents CustomerMedicalEvent[]
+  visits        Visit[]
+  invoices      Invoice[]
+  followUps     FollowUpTask[]
+  communications CommunicationLog[]
+  campaignRecipients CampaignRecipient[]
+  updateLogs    PatientUpdateLog[]
+
+  @@index([fullName])
+  @@index([phone])
+  @@index([birthDate])
+  @@index([status])
+  @@index([sourceId])
+}
+
+model PatientUpdateLog {
+  id         String   @id @default(cuid())
+  customerId String
+  userId     String
+  field      String
+  before     String?
+  after      String?
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user     User     @relation("PatientUpdateUser", fields: [userId], references: [id])
+
+  @@index([customerId])
+}
+
+model CustomerMedicalProfile {
+  id              String   @id @default(cuid())
+  customerId      String   @unique
+  previousProcedures String[] @default([])
+  allergies       String?
+  medicalNotes    String?
+  updatedByDoctorId String?
+  updatedAt       DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  updatedByDoctor User? @relation("MedicalProfileEditor", fields: [updatedByDoctorId], references: [id])
+}
+
+model CustomerMedicalEvent {
+  id            String   @id @default(cuid())
+  customerId    String
+  procedureType String
+  area          String?
+  procedureDate DateTime?
+  productName   String?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("MedicalEventCreatedBy", fields: [createdById], references: [id])
+
+  @@index([customerId])
+  @@index([procedureType])
+}
+
+model Visit {
+  id                   String      @id @default(cuid())
+  visitNo              Int         @unique @default(autoincrement())
+  customerId           String
+  doctorId             String?
+  scheduledAt          DateTime?
+  status               VisitStatus @default(REGISTERED)
+  checkInAt            DateTime?
+  checkedInById        String?
+  waitingAt            DateTime?
+  startedAt            DateTime?
+  treatmentCompletedAt DateTime?
+  sentToCashierAt      DateTime?
+  paidAt               DateTime?
+  closedAt             DateTime?
+  closedById           String?
+cancelledAt          DateTime?
+  cancelReason         String?
+  reopenedAt           DateTime?
+  reopenedById         String?
+  reopenReason         String?
+  notes                String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+customer Customer @relation(fields: [customerId], references: [id])
+  doctor   User?    @relation("VisitDoctor", fields: [doctorId], references: [id])
+  checkedInBy User? @relation("VisitCheckedInBy", fields: [checkedInById], references: [id])
+  closedBy   User?  @relation("VisitClosedBy", fields: [closedById], references: [id])
+  reopenedBy User?  @relation("VisitReopenedBy", fields: [reopenedById], references: [id])
+
+  treatment  Treatment?
+  invoice    Invoice?
+  followUps  FollowUpTask[]
+  followUpAppointment FollowUpTask? @relation("FollowUpAppointment")
+  medications VisitMedication[]
+
+  @@index([customerId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([checkInAt])
+  @@index([scheduledAt])
+}
+
+/** Medication/product info recorded on a visit (catalog or free-text). */
+model VisitMedication {
+  id            String   @id @default(cuid())
+  visitId       String
+  medicationId  String?
+  name          String
+  qty           String? // free text: "25 وحدة", "1 أنبوب"
+  dose          String?
+  instructions  String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+
+  visit      Visit?     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  medication Medication? @relation(fields: [medicationId], references: [id])
+
+  @@index([visitId])
+  @@index([medicationId])
+}
+
+/** دليل الأدوية — quick library for fast doctor entry (catalog and/or inventory-linked). */
+model Medication {
+  id                  String   @id @default(cuid())
+  name                String
+  brand               String?
+  form                String?
+  strength            String?
+  notes               String?
+  active              Boolean  @default(true)
+  /** Optional link to an inventory product — when set and quantity is consumed, stock deduction uses the inventory engine. */
+  inventoryProductId String?
+  createdById         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  createdBy User? @relation("MedicationCreatedBy", fields: [createdById], references: [id])
+  product   Product? @relation(fields: [inventoryProductId], references: [id])
+  visitMedications VisitMedication[]
+
+  @@index([name])
+  @@index([active])
+}
+
+/** Internal in-app notification (assigned patient, completed visit, ...). */
+model Notification {
+  id          String   @id @default(cuid())
+  recipientId String
+  title       String
+  body        String?
+  type        String // VISIT_ASSIGNED | TREATMENT_COMPLETED | OTHER
+  entityType  String?
+  entityId    String?
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  recipient User @relation("NotificationRecipient", fields: [recipientId], references: [id])
+
+  @@index([recipientId, readAt])
+  @@index([createdAt])
+}
+
+model Service {
+  id              String   @id @default(cuid())
+  name            String
+  englishName     String?
+  category        String?
+  defaultPrice    Decimal? @db.Decimal(12, 3)
+  /** Expected duration in minutes (optional, informational). */
+  durationMinutes Int?
+  /** Default material recipe: [{ productId?, name, qty, unit? }] — informational reference. */
+  defaultMaterials Json?
+  notes           String?
+  active          Boolean  @default(true)
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  createdBy User? @relation(fields: [createdById], references: [id])
+  treatmentItems TreatmentItem[]
+
+  @@index([name])
+  @@index([active])
+}
+
+model Treatment {
+  id                  String   @id @default(cuid())
+  visitId             String   @unique
+  doctorId            String
+  notes               String?
+  basePrice           Decimal  @db.Decimal(12, 3)
+  finalPrice          Decimal  @db.Decimal(12, 3)
+  discountAmount      Decimal  @default(0) @db.Decimal(12, 3)
+  sentToCashierAt     DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  visit  Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  doctor User  @relation("TreatmentDoctor", fields: [doctorId], references: [id])
+
+  items         TreatmentItem[]
+  discount      Discount?
+
+  @@index([doctorId])
+  @@index([visitId])
+}
+
+model TreatmentItem {
+  id            String   @id @default(cuid())
+  treatmentId   String
+  kind          String // SERVICE | MATERIAL
+  serviceId     String?
+  description   String
+  area          String?
+  productId     String?
+  productBatchId String?
+  qtyUsed       Decimal? @db.Decimal(12, 3)
+  unit          String?
+  unitCostSnapshot Decimal? @db.Decimal(12, 3)
+  linePrice     Decimal? @db.Decimal(12, 3)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  treatment Treatment @relation(fields: [treatmentId], references: [id], onDelete: Cascade)
+  service   Service?  @relation(fields: [serviceId], references: [id])
+  product   Product?  @relation(fields: [productId], references: [id])
+  batch     ProductBatch? @relation(fields: [productBatchId], references: [id])
+
+  @@index([treatmentId])
+  @@index([productBatchId])
+  @@index([serviceId])
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  invoiceNo      Int           @unique @default(autoincrement())
+  visitId        String        @unique
+  customerId     String
+  originalAmount Decimal       @db.Decimal(12, 3)
+  discountAmount Decimal       @default(0) @db.Decimal(12, 3)
+  finalAmount    Decimal       @db.Decimal(12, 3)
+  status         InvoiceStatus @default(UNPAID)
+  voidedAt       DateTime?
+  voidedById     String?
+  voidReason     String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  visit    Visit      @relation(fields: [visitId], references: [id])
+  customer Customer   @relation(fields: [customerId], references: [id])
+  lines    InvoiceLine[]
+  payments Payment[]
+  discount Discount?
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([visitId])
+}
+
+model InvoiceLine {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  kind        String // SERVICE | MATERIAL | OTHER
+  description String
+  qty         Decimal? @db.Decimal(12, 3)
+  unit        String?
+  unitPrice   Decimal? @db.Decimal(12, 3)
+  amount      Decimal  @db.Decimal(12, 3)
+  treatmentItemId String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("InvoiceLineCreatedBy", fields: [createdById], references: [id])
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  invoiceId     String
+  method        PaymentMethod
+  amount        Decimal       @db.Decimal(12, 3)
+  reference     String?
+  notes         String?
+  status        PaymentStatus @default(COMPLETED)
+  collectedById String
+  paidAt        DateTime      @default(now())
+  voidedAt      DateTime?
+  voidedById    String?
+  voidReason    String?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  collectedBy User @relation("PaymentCollector", fields: [collectedById], references: [id])
+
+  @@index([invoiceId])
+  @@index([collectedById])
+  @@index([paidAt])
+  @@index([method])
+  @@index([status])
+}
+
+model Discount {
+  id             String   @id @default(cuid())
+  invoiceId      String?  @unique
+  treatmentId    String?  @unique
+  type           String? // PERCENT | AMOUNT
+  originalAmount Decimal  @db.Decimal(12, 3)
+  discountAmount Decimal  @db.Decimal(12, 3)
+  finalAmount    Decimal  @db.Decimal(12, 3)
+  reason         String?
+  approvedById   String
+  approvedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+  treatment Treatment? @relation(fields: [treatmentId], references: [id])
+  approvedBy User @relation("DiscountApprover", fields: [approvedById], references: [id])
+
+  @@index([approvedById])
+  @@index([approvedAt])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  contact   String?
+  notes     String?
+  active    Boolean  @default(true)
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy User? @relation(fields: [createdById], references: [id])
+  products  Product[]
+  purchases Purchase[]
+
+  @@index([name])
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  englishName   String?
+  category      String
+  sku           String?
+  stockUnit     String
+  purchaseUnit  String?
+  conversionToStock Decimal? @db.Decimal(12, 3)
+  /** Non-divisible products may only be consumed in whole usage units. */
+  divisible     Boolean  @default(true)
+  /** Decimal places allowed when entering usage quantities. */
+  usagePrecision Int     @default(3)
+  minStock      Decimal  @default(0) @db.Decimal(12, 3)
+  avgCost       Decimal? @db.Decimal(12, 3)
+  trackExpiry   Boolean  @default(false)
+  trackBatch    Boolean  @default(false)
+  active        Boolean  @default(true)
+  supplierId    String?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  supplier  Supplier? @relation(fields: [supplierId], references: [id])
+  createdBy User?     @relation(fields: [createdById], references: [id])
+  batches   ProductBatch[]
+  movements StockMovement[]
+  treatmentItems TreatmentItem[]
+  purchaseItems PurchaseItem[]
+  purchaseRequestItems PurchaseRequestItem[]
+  inventoryCountLines InventoryCountLine[]
+  medications  Medication[]
+
+  @@index([name])
+  @@index([category])
+  @@index([active])
+}
+
+model ProductBatch {
+  id            String   @id @default(cuid())
+  productId     String
+  batchNo       String?
+  expiryDate    DateTime?
+  qtyOnHand     Decimal  @default(0) @db.Decimal(12, 3)
+  unitCost      Decimal? @db.Decimal(12, 3)
+  receivedQty   Decimal? @db.Decimal(12, 3)
+  active        Boolean  @default(true)
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+product Product @relation(fields: [productId], references: [id])
+  createdBy User? @relation("BatchCreatedBy", fields: [createdById], references: [id])
+  movements StockMovement[]
+  treatmentItems TreatmentItem[]
+  purchaseItems PurchaseItem[]
+  inventoryCountLines InventoryCountLine[]
+
+  @@unique([productId, batchNo])
+  @@index([expiryDate])
+  @@index([active])
+}
+
+model StockMovement {
+  id               String           @id @default(cuid())
+productId        String
+  batchId          String?
+  type             StockMovementType
+  qty              Decimal          @db.Decimal(12, 3) // signed
+  unit             String
+  balanceAfter     Decimal          @db.Decimal(12, 3)
+  referenceType    String
+  referenceId      String
+  referenceCountId String?
+  userId           String
+  reason           String?
+  sourceMovementId String?
+  createdAt        DateTime         @default(now())
+
+product Product @relation(fields: [productId], references: [id])
+  batch   ProductBatch? @relation(fields: [batchId], references: [id])
+  user    User     @relation("StockMovementUser", fields: [userId], references: [id])
+  inventoryCount InventoryCount? @relation("StockMovementCount", fields: [referenceCountId], references: [id])
+
+  @@index([productId])
+  @@index([batchId])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+  @@index([referenceCountId])
+}
+
+model PurchaseRequest {
+  id             String              @id @default(cuid())
+  requestNo      Int                 @unique @default(autoincrement())
+  type           PurchaseRequestType
+  status         PurchaseRequestStatus @default(PENDING)
+  description    String?
+  expectedAmount Decimal?            @db.Decimal(12, 3)
+  requesterId    String
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectedReason String?
+  notes          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  requester User @relation("PurchaseRequester", fields: [requesterId], references: [id])
+  approvedBy User? @relation("PurchaseRequestApprover", fields: [approvedById], references: [id])
+  items     PurchaseRequestItem[]
+  purchases Purchase[]
+
+  @@index([status])
+  @@index([type])
+  @@index([requesterId])
+  @@index([createdAt])
+}
+
+model PurchaseRequestItem {
+  id             String   @id @default(cuid())
+  requestId      String
+  productId      String?
+  description    String
+  qty            Decimal  @db.Decimal(12, 3)
+  unit           String?
+  estimatedCost  Decimal? @db.Decimal(12, 3)
+
+  request PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id])
+
+  @@index([requestId])
+}
+
+model Purchase {
+  id           String         @id @default(cuid())
+  purchaseNo   Int            @unique @default(autoincrement())
+  requestId    String?
+  supplierId   String?
+  invoiceNo    String
+  totalAmount  Decimal        @db.Decimal(12, 3)
+  method       PaymentMethod?
+  date         DateTime
+  notes        String?
+  status       PurchaseStatus @default(COMPLETED)
+  createdById  String
+  voidedAt     DateTime?
+  voidedById   String?
+  voidReason   String?
+  createdAt    DateTime       @default(now())
+
+  request   PurchaseRequest? @relation(fields: [requestId], references: [id])
+  supplier  Supplier?        @relation(fields: [supplierId], references: [id])
+  createdBy User             @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  items     PurchaseItem[]
+
+  @@index([requestId])
+  @@index([supplierId])
+  @@index([date])
+  @@index([status])
+}
+
+model PurchaseItem {
+  id            String   @id @default(cuid())
+  purchaseId    String
+  productId     String?
+  description   String
+  isExpenseOnly Boolean  @default(false)
+  qtyReceived   Decimal  @db.Decimal(12, 3)
+  unit          String?
+  unitCost      Decimal  @db.Decimal(12, 3)
+  batchNo       String?
+  expiryDate    DateTime?
+  createdBatchId String?
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product? @relation(fields: [productId], references: [id])
+  batch    ProductBatch? @relation(fields: [createdBatchId], references: [id])
+
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  name      String
+  kind      String // OPERATIONAL | MEDICAL | RENT | PAYROLL | MARKETING | UTILITIES | MAINTENANCE | OTHER
+  active    Boolean  @default(true)
+  createdById String?
+  createdAt DateTime @default(now())
+
+  createdBy User? @relation(fields: [createdById], references: [id])
+  expenses  Expense[]
+
+  @@index([active])
+}
+
+model Expense {
+  id            String       @id @default(cuid())
+  categoryId    String
+  amount        Decimal      @db.Decimal(12, 3)
+  date          DateTime
+  description   String
+  method        PaymentMethod?
+  reference     String?
+  status        ExpenseStatus @default(PENDING)
+  createdById   String
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectedReason String?
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  category  ExpenseCategory @relation(fields: [categoryId], references: [id])
+  createdBy User            @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?          @relation("ExpenseApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([categoryId])
+  @@index([date])
+  @@index([status])
+  @@index([createdById])
+}
+
+model FollowUpTask {
+  id           String        @id @default(cuid())
+  customerId   String
+  visitId      String?
+  appointmentVisitId String?  @unique
+  doctorId     String?
+  dueDate      DateTime
+  type         FollowUpType  @default(FOLLOW_UP)
+  status       FollowUpStatus @default(PENDING)
+  assignedToId String?
+  notes        String?
+  createdAt    DateTime      @default(now())
+  completedAt  DateTime?
+  completedById String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  visit    Visit?   @relation(fields: [visitId], references: [id])
+  appointmentVisit Visit? @relation("FollowUpAppointment", fields: [appointmentVisitId], references: [id], onDelete: SetNull)
+  doctor   User?    @relation("FollowUpDoctor", fields: [doctorId], references: [id])
+  assignedTo User?  @relation("FollowUpAssignedTo", fields: [assignedToId], references: [id])
+  completedBy User? @relation("FollowUpCompletedBy", fields: [completedById], references: [id])
+  communications CommunicationLog[]
+
+  @@index([customerId])
+  @@index([visitId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([assignedToId])
+}
+
+model CommunicationLog {
+  id             String              @id @default(cuid())
+  customerId     String
+  followUpTaskId String?
+  campaignId     String?
+  category       CommunicationCategory @default(TRANSACTIONAL)
+  channel        CommunicationChannel
+  direction      String              @default("OUT")
+  message        String
+  status         CommunicationStatus @default(SENT)
+  providerRef    String?
+  error          String?
+  sentById       String
+  sentAt         DateTime            @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  followUp FollowUpTask? @relation(fields: [followUpTaskId], references: [id])
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+  sentBy   User         @relation("CommunicationSentBy", fields: [sentById], references: [id])
+
+  @@index([customerId])
+  @@index([followUpTaskId])
+  @@index([campaignId])
+  @@index([category])
+  @@index([sentAt])
+}
+
+model Campaign {
+  id             String         @id @default(cuid())
+  name           String
+  audienceType   String // ALL | BOTOX | FILLER | NEW | RETURNING | INACTIVE | BIRTHDAY | DOCTOR | MANUAL
+  audienceParams Json?          // { doctorId?, customerIds? }
+  messageTemplate String
+  status         CampaignStatus @default(DRAFT)
+  scheduledFor   DateTime?
+  sentAt         DateTime?
+  cancelledAt    DateTime?
+  cancelledById  String?
+  matchedCount   Int            @default(0)
+  validPhoneCount Int           @default(0)
+  optedOutCount  Int            @default(0)
+  recipientCount Int            @default(0)
+  createdById    String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  createdBy      User             @relation("CampaignCreatedBy", fields: [createdById], references: [id])
+  cancelledBy    User?            @relation("CampaignCancelledBy", fields: [cancelledById], references: [id])
+  recipients     CampaignRecipient[]
+  communications CommunicationLog[]
+
+  @@index([status])
+  @@index([createdById])
+}
+
+model CampaignRecipient {
+  id         String                 @id @default(cuid())
+  campaignId String
+  customerId String
+  phone      String
+  status     CampaignRecipientStatus @default(QUEUED)
+  providerRef String?
+  error      String?
+  sentAt     DateTime?
+  retriedAt  DateTime?
+  createdAt  DateTime               @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([campaignId, customerId])
+  @@index([status])
+}
+
+model Attachment {
+  id           String              @id @default(cuid())
+  entityType   AttachmentEntityType
+  entityId     String
+  fileName     String
+  storedName   String              @unique
+  mimeType     String
+  sizeBytes    Int
+  uploadedById String
+  uploadedAt   DateTime            @default(now())
+
+  uploadedBy User @relation("AttachmentUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([uploadedById])
+}
+
+model CustomerSource {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User?      @relation("SourceCreatedBy", fields: [createdById], references: [id])
+  customers Customer[]
+
+  @@index([active])
+  @@index([sortOrder])
+}
+
+model InventoryCount {
+  id            String               @id @default(cuid())
+  countNo       Int                  @unique @default(autoincrement())
+  countDate     DateTime
+  status        InventoryCountStatus @default(DRAFT)
+  notes         String?
+  createdById   String
+  performedById String?
+  reviewedById  String?
+  postedById    String?
+  postedAt      DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  createdBy   User   @relation("CountCreatedBy", fields: [createdById], references: [id])
+  performedBy User?  @relation("CountPerformedBy", fields: [performedById], references: [id])
+  reviewedBy  User?  @relation("CountReviewedBy", fields: [reviewedById], references: [id])
+  postedBy    User?  @relation("CountPostedBy", fields: [postedById], references: [id])
+  lines       InventoryCountLine[]
+  movements   StockMovement[]        @relation("StockMovementCount")
+
+  @@index([status])
+  @@index([countDate])
+  @@index([createdById])
+}
+
+model InventoryCountLine {
+  id                  String   @id @default(cuid())
+  countId             String
+  productId           String
+  batchId             String?
+  expectedQty         Decimal  @db.Decimal(12, 3)
+  countedQty          Decimal  @db.Decimal(12, 3)
+  difference          Decimal  @db.Decimal(12, 3) // counted - expected (signed)
+  unit                String
+  estimatedCostImpact Decimal  @default(0) @db.Decimal(12, 3)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  count   InventoryCount @relation(fields: [countId], references: [id], onDelete: Cascade)
+  product Product        @relation(fields: [productId], references: [id])
+  batch   ProductBatch?  @relation(fields: [batchId], references: [id])
+
+  @@unique([countId, productId, batchId])
+  @@index([countId])
+  @@index([productId])
+}
+
+model DayClosing {
+  id           String        @id @default(cuid())
+  closeDate    DateTime      @unique // date at clinic-midnight, normalized
+  expectedCash Decimal       @db.Decimal(12, 3)
+  expectedCliq Decimal       @db.Decimal(12, 3)
+  expectedVisa Decimal       @db.Decimal(12, 3)
+  actualCash   Decimal       @db.Decimal(12, 3)
+  actualCliq   Decimal       @db.Decimal(12, 3)
+  actualVisa   Decimal       @db.Decimal(12, 3)
+varianceCash Decimal       @db.Decimal(12, 3)
+  varianceCliq Decimal       @db.Decimal(12, 3)
+  varianceVisa Decimal       @db.Decimal(12, 3)
+  totalExpected Decimal      @db.Decimal(12, 3)
+  totalActual   Decimal      @db.Decimal(12, 3)
+  totalVariance Decimal      @db.Decimal(12, 3)
+  notes        String?
+  /** Secretary explanation — required when any variance is non-zero. */
+  varianceExplanation String?
+  /** Reviewer note — required when the settlement is returned for correction. */
+  reviewNote    String?
+  status       ClosingStatus @default(OPEN)
+  submittedById String?
+  submittedAt  DateTime?
+  reviewedById String?
+  reviewedAt   DateTime?
+  approvedById String?
+  approvedAt   DateTime?
+  closedById   String?
+  closedAt     DateTime?
+  reopenedById String?
+  reopenedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  submittedBy User? @relation("ClosingSubmittedBy", fields: [submittedById], references: [id])
+  reviewedBy  User? @relation("ClosingReviewedBy", fields: [reviewedById], references: [id])
+  approvedBy  User? @relation("ClosingApprovedBy", fields: [approvedById], references: [id])
+  closedBy   User? @relation("ClosingClosedBy", fields: [closedById], references: [id])
+  reopenedBy User? @relation("ClosingReopenedBy", fields: [reopenedById], references: [id])
+
+  @@index([closeDate])
+  @@index([status])
+}
+
+model Setting {
+  key         String   @id
+  value       String   // JSON-encoded
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  userRole    Role?
+  action      String
+  entityType  String
+  entityId    String?
+  beforeJson  String?
+  afterJson   String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  user User? @relation("AuditActor", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Loreen Medical Clinic</title>
+  <desc id="desc">Champagne gold Loreen monogram with a botanical leaf</desc>
+  <defs>
+    <linearGradient id="gold" x1="30" y1="24" x2="220" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f2d8a2"/>
+      <stop offset=".48" stop-color="#c8a15a"/>
+      <stop offset="1" stop-color="#8f6d33"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="112" fill="none" stroke="url(#gold)" stroke-width="4"/>
+  <path d="M80 66h49M95 66v111M95 177h84" fill="none" stroke="url(#gold)" stroke-linecap="round" stroke-linejoin="round" stroke-width="8"/>
+  <path d="M99 163c31-13 48-38 69-76" fill="none" stroke="url(#gold)" stroke-linecap="round" stroke-width="4"/>
+  <path d="M143 119c-3-23 8-40 28-54 5 24-5 42-28 54Z" fill="url(#gold)"/>
+  <path d="M158 103c16-18 34-22 52-17-11 20-28 27-52 17Z" fill="url(#gold)"/>
+  <path d="M129 139c-1-18 8-30 24-39 3 18-5 31-24 39Z" fill="url(#gold)"/>
+  <path d="M145 130c15-13 29-15 43-10-10 15-24 19-43 10Z" fill="url(#gold)"/>
+  <path d="M112 151c-1-14 5-24 17-31 2 14-4 24-17 31Z" fill="url(#gold)"/>
+</svg>
