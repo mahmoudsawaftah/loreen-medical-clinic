@@ -101,13 +101,6 @@ export async function createVisit(actor: AuthUser, input: CreateVisitInput): Pro
       actor.id,
     );
   }
-  await notifySecretaries({
-    title: "موعد/مريضة جديدة",
-    body: `${customer.fullName} — تم تسجيلها وتحتاج متابعة الاستقبال`,
-    type: "VISIT_ASSIGNED",
-    entityType: "visit",
-    entityId: visit.id,
-  });
   return { id: visit.id, visitNo: visit.visitNo };
 }
 

@@ -1083,7 +1083,6 @@ export const DICT = {
   "users.enable": { ar: "تفعيل", en: "Enable" },
   "users.granted": { ar: "ممنوحة", en: "Granted" },
   "users.blocked": { ar: "ممنوعة", en: "Blocked" },
-  "users.resetPreset": { ar: "إعادة ضبط حسب الدور", en: "Reset to role defaults" },
 
   // --- settings ---
   "settings.title": { ar: "الإعدادات", en: "Settings" },

@@ -7,7 +7,7 @@ describe("English application shell regression coverage", () => {
   it("keeps the dashboard visible for an owner", () => {
     const permissions = effectivePermissions({ role: "OWNER", permissionOverrides: [] });
     expect(navItemsFor({ role: "OWNER", permissions })).toEqual(expect.arrayContaining([
-      expect.objectContaining({ href: "/dashboard", labelKey: "nav.dashboard" }),
+      expect.objectContaining({ href: "/dashboard", labelKey: "nav.workspace" }),
     ]));
     expect(NAV_GROUPS.some((group) => group.hrefs.some((href) => href === "/dashboard"))).toBe(true);
   });
