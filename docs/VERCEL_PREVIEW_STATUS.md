@@ -9,8 +9,16 @@
 - المشروع مربوط بمشروع Vercel الحالي، ولم يتم إنشاء مشروع مكرر.
 - لم يتم تنفيذ نشر Production.
 - تم إنشاء Preview بنجاح وحالته `Ready`.
-- رابط Preview: https://loreen-medical-clinic-1z68gw3cv-mahmoudsawaftahs-projects.vercel.app
+- آخر رابط Preview: https://loreen-medical-clinic-872tbzb0r-mahmoudsawaftahs-projects.vercel.app
 - حماية Deployment مفعلة؛ لذلك يظهر 404 عند فتح الرابط بدون bypass. اختبار Vercel الداخلي وصل إلى `/login` بنجاح.
+
+## قاعدة بيانات Preview
+
+- Neon project: `loreen-medical-clinic-preview`
+- Neon branch: `preview`
+- Region: `aws-us-east-2`
+- تم تطبيق 10 Prisma migrations على branch Preview.
+- تم ضبط `DATABASE_URL` و`SESSION_SECRET` و`NEXT_PUBLIC_APP_URL` في Vercel Preview كمتغيرات مخفية/مخصصة، بدون حفظها في Git.
 
 ## ما تم إصلاحه
 
@@ -39,6 +47,8 @@
 - `NEXT_PUBLIC_APP_URL`: رابط Preview الفعلي بعد إنشائه.
 
 بعد إضافة القيم من Vercel وإعادة النشر، يجب تشغيل `prisma migrate deploy` على قاعدة Preview فقط، ثم اختبار تسجيل الدخول والصفحات والقراءة والكتابة والسجلات runtime.
+
+تم تنفيذ هذه الخطوات لبيئة Preview الحالية، ونجح بناء Vercel بعد إضافة قاعدة البيانات. التحذيرات المتبقية تخص install scripts وواجهة middleware القديمة ولا تمنع البناء.
 
 ## قرار النشر
 
